@@ -2,56 +2,62 @@
 
 **Target Duration:** ~15 minutes
 **Language:** English
-**Format:** Sequential presentation. Each speaker presents their section entirely before the next speaker begins. No conversational back-and-forth. No live demonstration.
+**Format:** A structured presentation where all 4 team members introduce themselves and present specific parts of the project's code logic. At the end, there is a live demonstration using Wireshark to prove the network capture.
 
 ---
 
-## Speaker 1: Introduction and System Architecture
-**(Estimated Time: 3.5 - 4 minutes)**
+## 1. Melo: Introduction and Server Architecture
+**(Estimated Time: 3 - 4 minutes)**
 
-"Hello everyone. Today, our team is presenting CryptoChat, an educational network traffic and cryptography analyzer. In modern network environments, it is easy to take terms like confidentiality, encryption, and man-in-the-middle attacks for granted without truly understanding how the data looks at the packet level. Our objective with CryptoChat is to provide a clear, functional tool that demonstrates exactly how different cryptographic choices affect the network traffic transmitted between clients.
+**Melo:** "Hello everyone, my name is Melo, and along with Robledo, Angela, and Karold, we are going to present our project: CryptoChat. CryptoChat is an educational network traffic and cryptography analyzer. Our goal with this project is to demonstrate exactly how different encryption algorithms protect data—or fail to protect it—at the network level. 
 
-The core of our project is built around a centralized TCP Relay Server. This server is designed to be as lightweight and straightforward as possible. It operates on port 9999 and functions strictly as a broadcast hub. This means that whenever a client sends a network packet to the server, the server takes that exact payload and forwards it to all other connected clients. It does not inspect, modify, or decrypt the traffic. By using this centralized relay architecture, we simulate a realistic network environment where traffic traverses public or untrusted nodes, making it susceptible to interception by packet sniffers like Wireshark.
+To achieve this, we divided our code into three main Python files: a Graphical User Interface for the clients (`client_gui.py`), a cryptographic engine (`crypto_utils.py`), and a central relay server (`server.py`).
 
-The client application is where all the logic and cryptographic processing takes place. It features a modern, dark-themed graphical user interface that connects asynchronously to the TCP server. Because the server is just a blind relay, the clients bear the full responsibility for securing their communications. The system supports four distinct operational modes that users can switch between at any time: Unencrypted, AES, RSA, and Hybrid. This design allows users to directly compare the functional differences and the security implications of each cryptographic method without having to restart the application or reconfigure the server.
-
-Ultimately, the architecture is intentionally designed to separate the transport layer from the application security layer. The server handles the transport, while the clients handle the security. This separation is fundamental to understanding end-to-end encryption, which is the primary concept our project aims to illustrate."
+I will start by explaining the server. The architecture is a classic client-server model, but we designed our server to be a simple 'blind' TCP relay. Operating on port 9999, the server accepts incoming connections from multiple clients. Whenever a client sends a message, the server reads the data and uses a `broadcast` function to forward that exact byte stream to every other connected socket. The server does not inspect, parse, or decrypt the data; it simply routes it. This design accurately simulates an untrusted public network or ISP, where the data transport layer is insecure by default. If we want privacy, the clients themselves must handle the encryption before the data ever reaches the socket."
 
 ---
 
-## Speaker 2: The Automated Handshake and Unencrypted Baseline
-**(Estimated Time: 3.5 - 4 minutes)**
+## 2. Robledo: The Handshake and Unencrypted Mode
+**(Estimated Time: 3 - 4 minutes)**
 
-"Following the architecture, it is important to understand how the clients establish their initial connection. In many secure systems, exchanging cryptographic keys is the most vulnerable and complex phase. To streamline this and focus on the traffic analysis, our project implements an automated, bidirectional key exchange handshake. 
+**Robledo:** "Thank you, Melo. I'm Robledo, and I will explain how our clients establish a connection and how our baseline communication works. 
 
-When a client application is launched, it immediately generates its own unique 2048-bit RSA key pair—a public key and a private key. As soon as a second client connects to the network, the first client automatically detects the presence of a new peer. Without requiring any user intervention, it broadcasts a 'Handshake Request' packet containing its RSA Public Key in PEM format. The receiving client captures this public key, stores it, and immediately responds with a 'Handshake Response' packet containing its own public key. Within milliseconds, both clients have securely exchanged their public keys. The graphical interface updates to reflect that a secure peer connection has been established. This automated handshake is the foundation that allows our asymmetric and hybrid encryption modes to function seamlessly.
+When you launch our `client_gui.py`, it initializes an instance of our `CryptoEngine`. The very first thing the engine does is generate a unique 2048-bit RSA key pair. Once the client connects to the server, it automatically triggers a handshake. It constructs a JSON packet called `HANDSHAKE_REQ` containing its newly generated RSA Public Key in PEM format, and sends it to the server. When another client receives this request, it automatically replies with a `HANDSHAKE_RESP` containing its own public key. This process happens entirely in the background within milliseconds, securely distributing the public keys necessary for our asymmetric encryption modes.
 
-With the handshake complete, we can examine the first and most basic mode of operation: Unencrypted transmission. In this baseline mode, the application applies no cryptographic protection whatsoever. When a user types a message and sends it, the application constructs a standard JSON object. This JSON object contains two simple fields: a 'mode' tag indicating it is unencrypted, and a 'payload' field containing the exact plain text of the user's message.
-
-This JSON string is then encoded into standard bytes and pushed directly to the TCP socket on port 9999. If a network administrator or a malicious actor is monitoring that port using a tool like Wireshark, they can reconstruct the TCP stream perfectly. The entire message, including its content and structure, is completely legible in plain text. Functionally, this mode serves as an educational baseline. It visually demonstrates the zero-confidentiality risk inherent in legacy protocols like Telnet, FTP, or standard HTTP, proving that data transmitted without encryption is fundamentally compromised."
+Now, let's talk about the first of our four transmission modes: 'Unencrypted'. This is our baseline to demonstrate network vulnerability. When the user selects this mode, the client takes the plain text message from the input box, wraps it in a standard JSON format with the mode labeled as 'UNENCRYPTED', and sends it directly over the TCP socket. Absolutely no cryptographic functions are called. As we will see later in our Wireshark demonstration, anyone sniffing the network will be able to read the exact text of the message effortlessly."
 
 ---
 
-## Speaker 3: Symmetric (AES) and Asymmetric (RSA) Modes
-**(Estimated Time: 3.5 - 4 minutes)**
+## 3. Angela: Symmetric (AES) and Asymmetric (RSA) Encryption
+**(Estimated Time: 3 - 4 minutes)**
 
-"To address the vulnerabilities of unencrypted traffic, the project introduces two distinct cryptographic modes: AES and RSA. 
+**Angela:** "Hello, I am Angela, and I will explain the first two secure modes handled by our `crypto_utils.py` file: AES and RSA.
 
-The first secure mode is AES, which stands for Advanced Encryption Standard. Specifically, our system utilizes AES-256 in Galois/Counter Mode, or GCM. This is a symmetric encryption algorithm, meaning the same secret key must be used to both encrypt and decrypt the message. Functionally, AES is incredibly fast and efficient, making it ideal for encrypting large amounts of data. Furthermore, GCM is an authenticated encryption mode. It not only scrambles the text to ensure confidentiality, but it also provides integrity, ensuring the payload has not been tampered with in transit. When a message is sent in AES mode, the resulting JSON payload no longer contains text; instead, it contains a randomly generated nonce and the ciphertext, both encoded in Base64. However, AES has a significant functional limitation: key distribution. Both clients must possess the exact same secret key beforehand. If that key is intercepted during distribution, the entire system is compromised.
+Our second mode is AES, which is a Symmetric encryption algorithm. We use AES-256 in Galois/Counter Mode (GCM). This mode provides extremely fast encryption and ensures both confidentiality and data integrity. In our code, we simulate a pre-shared key environment by initializing a static 32-byte key in the `CryptoEngine`. When a user selects AES, the message is encrypted using this pre-shared key, and the resulting JSON payload sent to the socket contains only a Base64-encoded nonce and the ciphertext. While highly secure and fast, the limitation here is key distribution: in the real world, securely sharing that 32-byte key beforehand is incredibly difficult.
 
-To solve the key distribution problem, our third mode implements RSA, an asymmetric encryption algorithm. RSA uses the 2048-bit key pairs generated during the automated handshake. In this mode, when a user sends a message, the system encrypts the payload using the peer's Public Key. Because of the mathematical properties of RSA, this ciphertext can only be decrypted by the peer's corresponding Private Key, which never leaves their machine. This completely eliminates the need to share a secret key in advance.
-
-However, RSA also has functional limitations. It is computationally expensive, making it significantly slower than AES. More importantly, RSA has strict payload size limits. The amount of data you can encrypt cannot exceed the mathematical size of the key itself. For a 2048-bit key, this restricts the payload to very short text messages. Therefore, while RSA solves the secure key distribution problem, it is functionally impractical for transmitting large volumes of data or sustained chat conversations."
+To solve the key distribution problem, our third mode implements RSA, an Asymmetric algorithm. Remember the public keys Robledo mentioned during the handshake? When a user selects RSA mode, the application encrypts the message using the peer's Public Key via RSA-OAEP padding. Since only the peer has the corresponding Private Key, the message is perfectly secure without needing a pre-shared secret. However, RSA is slow and has a strict mathematical size limit. For our 2048-bit keys, we can only encrypt very short text payloads. If a user tries to send a large paragraph in RSA mode, the encryption process will functionally fail. This brings us to the ultimate solution, which Karold will explain."
 
 ---
 
-## Speaker 4: Hybrid Encryption and the Wireshark Monitor
-**(Estimated Time: 3.5 - 4 minutes)**
+## 4. Karold: Hybrid Encryption and Wireshark Live Proof
+**(Estimated Time: 4 - 5 minutes)**
 
-"To overcome the individual limitations of AES and RSA, the project features a fourth mode: Hybrid Encryption. This is the recommended operational mode and represents how modern secure communications, such as TLS and HTTPS, function in the real world.
+**Karold:** "Hi everyone, I'm Karold. To solve the limitations of AES and RSA, our project features a fourth mode: Hybrid Encryption. This combines the speed of AES with the secure key distribution of RSA. 
 
-The Hybrid mode is an automated, multi-step process that combines the speed of AES with the secure distribution of RSA. Functionally, when a message is sent in this mode, the system first generates a brand new, random 256-bit AES key. This key is 'ephemeral,' meaning it is created exclusively for this single message and will be discarded immediately afterward. The system then encrypts the user's message using this fast AES key. Next, to safely transmit this ephemeral AES key to the peer, the system encrypts the AES key itself using the peer's RSA Public Key. 
+When a user selects Hybrid mode, our code does three things: First, it generates a brand-new, random 256-bit AES key—an ephemeral key used only for this single message. Second, it encrypts the user's message with this fast AES key. Third, it encrypts the AES key itself using the peer's RSA Public Key. The JSON sent over the network contains the RSA-encrypted AES key, the AES nonce, and the AES-encrypted text. The receiving client simply reverses this process. This represents how modern protocols like TLS actually work.
 
-The final JSON payload transmitted over the network contains three components: the RSA-encrypted AES key, the AES nonce, and the AES-encrypted message. When the peer receives this complex payload, they use their RSA Private Key to decrypt the ephemeral AES key, and then use that AES key to decrypt the actual message. This completely secures the data while allowing for payloads of any size.
+Now, I am going to prove that our code works exactly as described by intercepting our own traffic using Wireshark. 
 
-Finally, to make these concepts visible, the client features a built-in 'Socket Inspector' or 'Wireshark Monitor'. Rather than forcing users to run external network sniffing tools to see the results, this interface intercepts the exact raw byte strings just milliseconds before they are pushed to the TCP socket. It displays the raw JSON payload in a dedicated terminal window within the application, alongside metrics for packet counts and byte sizes. This allows users to immediately observe how switching from Unencrypted to Hybrid mode transforms legible text into high-entropy, opaque Base64 strings. It effectively demystifies network security by showing users precisely what an eavesdropper would capture, bridging the gap between theoretical cryptography and applied network analysis."
+*(Karold shares her screen, showing two CryptoChat clients side-by-side, and Wireshark running in the background).*
+
+I have Wireshark capturing traffic on my local loopback interface, filtering for `tcp.port == 9999`. 
+
+First, I will set Client A to 'Unencrypted' mode and send the message: 'This is a secret password'. 
+*(Karold hits send).*
+If I go to Wireshark, I see the packet. I right-click it, select 'Follow TCP Stream', and... right there in plain red text, you can read the full JSON payload: `{"mode": "UNENCRYPTED", "payload": "This is a secret password"}`. The vulnerability is clearly exposed.
+
+Now, I will set the client to 'Hybrid' mode and send the message: 'Classified data transfer'.
+*(Karold hits send).*
+I go back to Wireshark, find the new packet, and Follow the TCP Stream. This time, the stream is completely unintelligible. You can see the `"mode": "HYBRID"` tag, but the payload consists entirely of high-entropy Base64 strings representing the encrypted AES key and the ciphertext. The actual message content is cryptographically sealed and impossible to read without the Private Key. 
+
+This proves that our application successfully secures network traffic and that our built-in UI accurately reflects the real-world network bytes. Thank you all for your attention!"
