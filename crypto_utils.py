@@ -13,7 +13,7 @@ class CryptoEngine:
         )
         self.rsa_public_key = self.rsa_private_key.public_key()
         # Clave simétrica fija pre-compartida (Simulación AES directo)
-        self.aes_preshared_key = AESGCM.generate_key(bit_length=256)
+        self.aes_preshared_key = b"ThisIsASecretPreSharedKey1234567"
 
     def get_public_key_pem(self) -> str:
         pem = self.rsa_public_key.public_bytes(
